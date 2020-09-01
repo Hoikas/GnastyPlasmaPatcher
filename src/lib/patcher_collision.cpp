@@ -32,7 +32,11 @@ void gpp::patcher::process_collision()
             plDebug::Debug("  -> Patching '{}'", dst->getKey()->getName());
             m_DirtyPages.insert(dst->getKey()->getLocation());
 
-            // TODO: the various properties
+            // Note: these are not all the properties...
+            dst->setMass(src->getMass());
+            dst->setMemberGroup(src->getMemberGroup());
+            dst->setCollideGroup(src->getCollideGroup());
+
             dst->setBoundsType(src->getBoundsType());
             dst->setDimensions(src->getDimensions());
             dst->setOffset(src->getOffset());
