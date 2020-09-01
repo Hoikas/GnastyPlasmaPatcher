@@ -198,46 +198,48 @@ plKey gpp::patcher::map_homologous_key(const plKey& needle,
 void gpp::patcher::iterate_keys(uint16_t classType,
                                 const std::function<bool(const plKey&, const plKey&)> iter)
 {
-    auto srcKeys = m_Source->getKeys(classType);
-    auto dstKeys = m_Destination->getKeys(classType);
+    for (const auto& loc : m_Source->getLocations()) {
+        auto srcKeys = m_Source->getKeys(loc, classType);
+        auto dstKeys = m_Destination->getKeys(loc, classType);
 
-    for (const auto& i : srcKeys) {
-        plKey dstKey = find_homologous_key(i, dstKeys);
-        if (dstKey.Exists()) {
-            if (iter(i, dstKey))
-                continue;
-        }
-
-        // now we ask external code for key name suggestions until they stop giving us any.
-        if (!m_MapFunc) {
-            plDebug::Error("  -> Cannot map [{}] '{}' to another key - no function available",
-                            plFactory::ClassName(i->getType()), i->getName());
-            continue;
-        }
-
-        do {
-            plKey suggestion = map_homologous_key(i, dstKeys);
-            if (!suggestion.Exists()) {
-                plDebug::Error("  -> No match available for [{}] '{}'",
-                               plFactory::ClassName(i->getType()), i->getName());
-                break;
+        for (const auto& i : srcKeys) {
+            plKey dstKey = find_homologous_key(i, dstKeys);
+            if (dstKey.Exists()) {
+                if (iter(i, dstKey))
+                    continue;
             }
 
-            plDebug::Debug("  -> Trying suggested override for [{}] '{}' -> '{}'",
-                           plFactory::ClassName(i->getType()),
-                           i->getName(), suggestion->getName());
-            if (iter(i, suggestion)) {
-                m_KeyLUT[i] = suggestion;
-                break;
-            } else {
-                plDebug::Error("  -> Iterator rejected suggested override for [{}] '{}' -> '{}'",
+            // now we ask external code for key name suggestions until they stop giving us any.
+            if (!m_MapFunc) {
+                plDebug::Error("  -> Cannot map [{}] '{}' to another key - no function available",
+                                plFactory::ClassName(i->getType()), i->getName());
+                continue;
+            }
+
+            do {
+                plKey suggestion = map_homologous_key(i, dstKeys);
+                if (!suggestion.Exists()) {
+                    plDebug::Error("  -> No match available for [{}] '{}'",
+                                   plFactory::ClassName(i->getType()), i->getName());
+                    break;
+                }
+
+                plDebug::Debug("  -> Trying suggested override for [{}] '{}' -> '{}'",
                                plFactory::ClassName(i->getType()),
                                i->getName(), suggestion->getName());
-                continue;
-            }
+                if (iter(i, suggestion)) {
+                    m_KeyLUT[i] = suggestion;
+                    break;
+                } else {
+                    plDebug::Error("  -> Iterator rejected suggested override for [{}] '{}' -> '{}'",
+                                   plFactory::ClassName(i->getType()),
+                                   i->getName(), suggestion->getName());
+                    continue;
+                }
 
-            error::raise("gpp::patcher::iterate_keys() - potential infinite loop");
-        } while (1);
+                error::raise("gpp::patcher::iterate_keys() - potential infinite loop");
+            } while (1);
+        }
     }
 }
 
