@@ -118,18 +118,28 @@ void gpp::patcher::sanity_check_registry() const
 
 // ===========================================================================
 
-plKey gpp::patcher::find_homologous_key(const plKey& needle,
-                                        const std::vector<plKey>& haystack) const
+plKey gpp::patcher::find_named_key(const plLocation& loc, uint16_t classType, const ST::string& name,
+                                   const std::vector<plKey>& haystack) const
 {
+    plKey result;
     auto findIt = std::find_if(haystack.begin(), haystack.end(),
-                               [&needle](const plKey& i) {
-                                   return (needle->getLocation() == i->getLocation()) &&
-                                          (needle->getType() == i->getType()) &&
-                                          (needle->getName().compare_i(i->getName()) == 0);
+                               [&loc, classType, &name](const plKey& i) {
+                                   return (loc == i->getLocation()) &&
+                                          (classType == i->getType()) &&
+                                          (name.compare_i(i->getName()) == 0);
                                }
     );
     if (findIt != haystack.end())
-        return *findIt;
+        result = *findIt;
+    return result;
+}
+
+plKey gpp::patcher::find_homologous_key(const plKey& needle,
+                                        const std::vector<plKey>& haystack)
+{
+    plKey result = find_named_key(needle->getLocation(), needle->getType(), needle->getName(), haystack);
+    if (result.Exists())
+        return result;
 
     // either the key was rejected by the iterator OR we just couldn't find it. so check the LUT
     // and the finder.
@@ -138,10 +148,37 @@ plKey gpp::patcher::find_homologous_key(const plKey& needle,
         plDebug::Debug("  -> Using cached key override for [{}] '{}' -> '{}'",
                         plFactory::ClassName(needle->getType()),
                         needle->getName(), lutIt->second->getName());
-        return lutIt->second;
+        result = lutIt->second;
     }
 
-    return plKey();
+    // These are some common splits introduced by the ZLZ/Korman pairing. Hopefully these
+    // shortcuts won't be too restrictive.
+    ST::string suffix = ST::null;
+    switch (needle->getType()) {
+    case kGenericPhysical:
+        suffix = ST_LITERAL("_COLLISION.001");
+        break;
+    case kDrawInterface:
+        suffix = ST_LITERAL("_DRAW.001");
+        break;
+    }
+
+    if (!suffix.empty()) {
+        ST_ssize_t pos = needle->getName().find_last(suffix);
+        if (pos + suffix.size() == needle->getName().size()) {
+            result = find_named_key(needle->getLocation(), needle->getType(),
+                                    needle->getName().left(pos), haystack);
+            if (result.Exists()) {
+                plDebug::Debug("  -> Using auto key mapping for [{}] '{}' -> '{}'",
+                               plFactory::ClassName(needle->getType()),
+                               needle->getName(), result->getName());
+                m_KeyLUT[needle] = result;
+                return result;
+            }
+        }
+    }
+
+    return result;
 }
 
 plKey gpp::patcher::map_homologous_key(const plKey& needle,
