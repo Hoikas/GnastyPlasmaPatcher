@@ -1,0 +1,92 @@
+# This file is part of GnastyPlasmaPatcher.
+#
+# GnastyPlasmaPatcher is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# GnastyPlasmaPatcher is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GnastyPlasmaPatcher.  If not, see <https://www.gnu.org/licenses/>.
+
+name: CI
+on: [push, pull_request]
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ["ubuntu-20.04", "windows-latest"]
+        arch: ["x64"]
+
+        include:
+          - os: windows-latest
+            arch: x86
+
+    env:
+      VCPKG_FEATURE_FLAGS: binarycaching,manifests
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/deps,readwrite
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Update vcpkg
+        run: |
+          git clone https://github.com/Microsoft/vcpkg.git
+          if ("${{ runner.os }}" -Eq "Windows") {
+            Write-Host "::set-env name=VCPKG_DEFAULT_TRIPLET::${{ matrix.arch }}-windows-static-md"
+          }
+
+      - name: Get Commit SHA
+        id: git-rev
+        run: |
+          Write-Host "::set-output name=gpp::$(git rev-parse HEAD)"
+          Set-Location $Env:VCPKG_ROOT
+          Write-Host "::set-output name=vcpkg::$(git rev-parse HEAD)"
+
+      - name: Restore Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/deps
+          key: |
+            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }} gpp-rev=${{ steps.git-rev.outputs.gpp }}
+          restore-keys: |
+            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }}
+            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }}
+
+      - name: Configure Build Environment (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if ("${{ matrix.arch }}" -eq "x86") {
+            $cmake_arch = "Win32"
+          } else {
+            $cmake_arch = "${{ matrix.arch }}"
+          }
+          Write-Host "::set-env name=CMAKE_GENERATOR::Visual Studio 16 2019"
+          Write-Host "::set-env name=CMAKE_GENERATOR_PLATFORM::$cmake_arch"
+
+      - name: Build GPP
+        run: |
+          mkdir build && cd build
+          cmake `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_INSTALL=ON `
+            ..
+          cmake --build . -j2
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ runner.os }}-${{ matrix.arch }}
+          path: build/Release
+

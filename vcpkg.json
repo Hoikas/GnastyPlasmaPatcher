@@ -1,0 +1,11 @@
+{
+  "name": "gnastyplasmapatcher",
+  "version-string": "dev",
+  "homepage": "https://github.com/Hoikas/GnastyPlasmaPatcher",
+  "dependencies": [
+    "cxxopts",
+    "libhsplasma",
+    "string-theory"
+  ],
+  "supports": "!(arm|uwp)"
+}
