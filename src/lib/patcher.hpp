@@ -71,6 +71,10 @@ namespace gpp
                              const std::vector<plKey>& haystack) const;
 
         [[nodiscard]]
+        plKey find_named_key(const plLocation& loc, uint16_t classType, const ST::string& name,
+                             const ST::string& suffix, const std::vector<plKey>& haystack) const;
+
+        [[nodiscard]]
         plKey find_homologous_key(const plKey& needle, const std::vector<plKey>& haystack);
 
         [[nodiscard]]

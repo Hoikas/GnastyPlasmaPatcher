@@ -18,6 +18,8 @@
 #include "errors.hpp"
 
 #include <Debug/plDebug.h>
+#include <PRP/Object/plSceneObject.h>
+#include <PRP/Object/plSimulationInterface.h>
 #include <PRP/Physics/plGenericPhysical.h>
 #include <ResManager/plResManager.h>
 
@@ -27,27 +29,58 @@ void gpp::patcher::process_collision()
 {
     plDebug::Debug("Processing colliders...");
 
-    iterate_objects<plGenericPhysical>(
-        [this](const plGenericPhysical* src, plGenericPhysical* dst) {
-            plDebug::Debug("  -> Patching '{}'", dst->getKey()->getName());
-            m_DirtyPages.insert(dst->getKey()->getLocation());
+    auto oldMap = std::move(m_MapFunc);
+    m_MapFunc = [this, &oldMap](const plKey& srcKey, const std::vector<plKey>& keys) {
+        // This is a common ZLZ replacement for us to check before prompting.
+        plKey result = find_named_key(srcKey->getLocation(), srcKey->getType(),
+                                      srcKey->getName(), ST_LITERAL("_COLLISION_001"),
+                                      keys);
+        if (!result.Exists() && oldMap)
+            result = oldMap(srcKey, keys);
+        return result;
+    };
 
-            // Note: these are not all the properties...
-            dst->setMass(src->getMass());
-            dst->setMemberGroup(src->getMemberGroup());
-            dst->setCollideGroup(src->getCollideGroup());
+    iterate_objects<plSceneObject>(
+        [this](const plSceneObject* srcSO, plSceneObject* dstSO) {
+            if (!srcSO->getSimInterface().Exists() && !dstSO->getSimInterface().Exists())
+                return true;
 
-            dst->setBoundsType(src->getBoundsType());
-            dst->setDimensions(src->getDimensions());
-            dst->setOffset(src->getOffset());
-            dst->setRadius(src->getRadius());
-            dst->setLength(src->getLength());
-            dst->setIndices(src->getIndices().size(), src->getIndices().data());
-            dst->setVerts(src->getVerts().size(), src->getVerts().data());
+            // Was the physical deleted?
+            if (!srcSO->getSimInterface().Exists() && dstSO->getSimInterface().Exists()) {
+                plDebug::Debug("  -> Deleting '{}' collision...", dstSO->getKey()->getName());
+                {
+                    auto simIface = plSimulationInterface::Convert(dstSO->getSimInterface()->getObj());
+                    m_Destination->DelObject(simIface->getPhysical());
+                    m_Destination->DelObject(simIface->getKey());
+                }
+                dstSO->setSimInterface(plKey());
+            } else if (srcSO->getSimInterface().Exists() && dstSO->getSimInterface().Exists()) {
+                plDebug::Debug("  -> Patching '{}'", dstSO->getKey()->getName());
+                auto srcSimIface = plSimulationInterface::Convert(srcSO->getSimInterface()->getObj());
+                auto dstSimIface = plSimulationInterface::Convert(dstSO->getSimInterface()->getObj());
+                auto src = plGenericPhysical::Convert(srcSimIface->getPhysical()->getObj());
+                auto dst = plGenericPhysical::Convert(dstSimIface->getPhysical()->getObj());
 
-            // All the key resolve stuff was handled by the iterator code. If we have to drop
-            // back down to object level, I will be sad.
+                // Note: these are not all the properties...
+                dst->setMass(src->getMass());
+                dst->setMemberGroup(src->getMemberGroup());
+                dst->setCollideGroup(src->getCollideGroup());
+
+                dst->setBoundsType(src->getBoundsType());
+                dst->setDimensions(src->getDimensions());
+                dst->setOffset(src->getOffset());
+                dst->setRadius(src->getRadius());
+                dst->setLength(src->getLength());
+                dst->setIndices(src->getIndices().size(), src->getIndices().data());
+                dst->setVerts(src->getVerts().size(), src->getVerts().data());
+            } else if (srcSO->getSimInterface().Exists() && !dstSO->getSimInterface().Exists()) {
+                error::raise("Cannot add collision to '{}' - this is not yet implemented.", dstSO->getKey()->getName());
+            }
+
+            m_DirtyPages.insert(dstSO->getKey()->getLocation());
             return true;
         }
     );
+
+    m_MapFunc = std::move(oldMap);
 }

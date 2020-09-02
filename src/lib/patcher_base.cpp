@@ -134,6 +134,20 @@ plKey gpp::patcher::find_named_key(const plLocation& loc, uint16_t classType, co
     return result;
 }
 
+plKey gpp::patcher::find_named_key(const plLocation& loc, uint16_t classType, const ST::string& name,
+                                   const ST::string& suffix, const std::vector<plKey>& haystack) const
+{
+    plKey result;
+    if (!suffix.empty()) {
+        ST_ssize_t pos = name.find_last(suffix);
+        if (pos + suffix.size() == name.size())
+            result = find_named_key(loc, classType, name.left(pos), haystack);
+    } else {
+        result = find_named_key(loc, classType, name, haystack);
+    }
+    return result;
+}
+
 plKey gpp::patcher::find_homologous_key(const plKey& needle,
                                         const std::vector<plKey>& haystack)
 {
@@ -149,33 +163,6 @@ plKey gpp::patcher::find_homologous_key(const plKey& needle,
                         plFactory::ClassName(needle->getType()),
                         needle->getName(), lutIt->second->getName());
         result = lutIt->second;
-    }
-
-    // These are some common splits introduced by the ZLZ/Korman pairing. Hopefully these
-    // shortcuts won't be too restrictive.
-    ST::string suffix = ST::null;
-    switch (needle->getType()) {
-    case kGenericPhysical:
-        suffix = ST_LITERAL("_COLLISION.001");
-        break;
-    case kDrawInterface:
-        suffix = ST_LITERAL("_DRAW.001");
-        break;
-    }
-
-    if (!suffix.empty()) {
-        ST_ssize_t pos = needle->getName().find_last(suffix);
-        if (pos + suffix.size() == needle->getName().size()) {
-            result = find_named_key(needle->getLocation(), needle->getType(),
-                                    needle->getName().left(pos), haystack);
-            if (result.Exists()) {
-                plDebug::Debug("  -> Using auto key mapping for [{}] '{}' -> '{}'",
-                               plFactory::ClassName(needle->getType()),
-                               needle->getName(), result->getName());
-                m_KeyLUT[needle] = result;
-                return result;
-            }
-        }
     }
 
     return result;
