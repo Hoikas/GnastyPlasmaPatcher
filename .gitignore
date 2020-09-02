@@ -31,7 +31,8 @@
 *.out
 *.app
 
-# Build/IDE directories
+# Build/IDE stuff
 build/
+CMakeSettings.json
 out/
 .vs/
