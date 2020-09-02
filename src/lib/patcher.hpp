@@ -19,6 +19,9 @@
 
 #include <string_theory/string>
 
+// Because GCC sucks
+#include <PRP/KeyedObject/plKey.h>
+
 #include <filesystem>
 #include <functional>
 #include <map>
@@ -27,7 +30,6 @@
 
 class plAgeInfo;
 class plGenericPhysical;
-class plKey;
 class plLocation;
 class plPageInfo;
 class plResManager;

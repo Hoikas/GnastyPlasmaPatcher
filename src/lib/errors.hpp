@@ -22,11 +22,11 @@
 
 namespace gpp
 {
-    class error : public std::exception
+    class error : public std::runtime_error
     {
     public:
         error(const char* msg)
-              : std::exception(msg)
+              : std::runtime_error(msg)
         { }
 
         error(const error&) = delete;

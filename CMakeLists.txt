@@ -47,7 +47,7 @@ set(GPP_LIB_SOURCES
 add_library(gpplib STATIC ${GPP_LIB_HEADERS} ${GPP_LIB_SOURCES})
 target_include_directories(gpplib PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/lib>)
-target_link_libraries(gpplib PRIVATE HSPlasma)
+target_link_libraries(gpplib PUBLIC HSPlasma)
 target_link_libraries(gpplib PUBLIC string_theory)
 
 # ===========================================================================
@@ -66,4 +66,3 @@ add_executable(gppcli ${GPP_CLI_HEADERS} ${GPP_CLI_SOURCES})
 target_include_directories(gppcli PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/cli>)
 target_link_libraries(gppcli PRIVATE gpplib)
-target_link_libraries(gppcli PRIVATE HSPlasma)

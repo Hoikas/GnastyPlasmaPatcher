@@ -15,6 +15,7 @@
  */
 
 #include "log2stdio.hpp"
+#include "errors.hpp"
 
 #include <iostream>
 #include <memory>
@@ -43,7 +44,7 @@ namespace gpp
         }
 
         [[noreturn]]
-        uint32_t size() const override { throw std::exception("log2stdio_stream::size()"); }
+        uint32_t size() const override { error::raise("log2stdio_stream::size()"); }
 
         uint32_t pos() const override { return std::cout.tellp(); }
         bool eof() const override { return std::cout.eof(); }
@@ -51,13 +52,13 @@ namespace gpp
         void skip(int32_t count) override { std::cout.seekp(std::cout.tellp() + (std::streampos)count); }
 
         [[noreturn]]
-        void fastForward() override { throw std::exception("log2stdio_stream::fastForward()"); }
+        void fastForward() override { error::raise("log2stdio_stream::fastForward()"); }
 
         void rewind() override { std::cout.seekp(0); }
         void flush() override { std::cout.flush(); }
 
         [[noreturn]]
-        size_t read(size_t size, void* buf) override { throw std::exception("log2stdio_stream::read()"); }
+        size_t read(size_t size, void* buf) override { error::raise("log2stdio_stream::read()"); }
 
         size_t write(size_t size, const void* buf) override
         {
