@@ -18,6 +18,7 @@
 #include "errors.hpp"
 
 #include <Debug/plDebug.h>
+#include <PRP/plSceneNode.h>
 #include <PRP/Object/plSceneObject.h>
 #include <PRP/Object/plSimulationInterface.h>
 #include <PRP/Physics/plGenericPhysical.h>
@@ -74,7 +75,24 @@ void gpp::patcher::process_collision()
                 dst->setIndices(src->getIndices().size(), src->getIndices().data());
                 dst->setVerts(src->getVerts().size(), src->getVerts().data());
             } else if (srcSO->getSimInterface().Exists() && !dstSO->getSimInterface().Exists()) {
-                error::raise("Cannot add collision to '{}' - this is not yet implemented.", dstSO->getKey()->getName());
+                plDebug::Debug("  -> Adding collision to '{}' - be certain you are not spin washing colliders!",
+                               dstSO->getKey()->getName());
+
+                auto simIface = plSimulationInterface::Convert(srcSO->getSimInterface()->getObj());
+                auto phys = plGenericPhysical::Convert(simIface->getPhysical()->getObj());
+
+                // Update all refs just to make sure...
+                m_Destination->MoveKey(simIface->getKey(), dstSO->getKey()->getLocation());
+                m_Destination->MoveKey(phys->getKey(), dstSO->getKey()->getLocation());
+                simIface->setOwner(dstSO->getKey());
+                simIface->setPhysical(phys->getKey());
+                phys->setObject(dstSO->getKey());
+                phys->setSceneNode(m_Destination->getSceneNode(dstSO->getKey()->getLocation())->getKey());
+                if (phys->getSubWorld().Exists())
+                    phys->setSubWorld(find_homologous_key(phys->getSubWorld()));
+                if (phys->getSoundGroup().Exists())
+                    phys->setSoundGroup(find_homologous_key(phys->getSoundGroup()));
+                dstSO->setSimInterface(simIface->getKey());
             }
 
             m_DirtyPages.insert(dstSO->getKey()->getLocation());

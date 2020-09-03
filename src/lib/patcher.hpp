@@ -77,6 +77,10 @@ namespace gpp
                              const ST::string& suffix, const std::vector<plKey>& haystack) const;
 
         [[nodiscard]]
+        plKey find_homologous_key(const plKey& needle,
+                                  const std::function<bool(const plKey&, const plKey&)> func=nullptr);
+
+        [[nodiscard]]
         plKey find_homologous_key(const plKey& needle, const std::vector<plKey>& haystack);
 
         [[nodiscard]]

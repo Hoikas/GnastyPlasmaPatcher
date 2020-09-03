@@ -149,6 +149,51 @@ plKey gpp::patcher::find_named_key(const plLocation& loc, uint16_t classType, co
 }
 
 plKey gpp::patcher::find_homologous_key(const plKey& needle,
+                                        const std::function<bool(const plKey&, const plKey&)> func)
+{
+    auto dstKeys = m_Destination->getKeys(needle->getLocation(), needle->getType());
+
+    plKey dstKey = find_homologous_key(needle, dstKeys);
+    if (dstKey.Exists()) {
+        if (func && func(needle, dstKey))
+            return dstKey;
+    }
+
+    // now we ask external code for key name suggestions until they stop giving us any.
+    if (!m_MapFunc) {
+        plDebug::Error("  -> Cannot map [{}] '{}' to another key - no function available",
+                        plFactory::ClassName(needle->getType()), needle->getName());
+        return dstKey;
+    }
+
+    do {
+        plKey suggestion = map_homologous_key(needle, dstKeys);
+        if (!suggestion.Exists()) {
+            plDebug::Error("  -> No match available for [{}] '{}'",
+                            plFactory::ClassName(needle->getType()), needle->getName());
+            break;
+        }
+
+        plDebug::Debug("  -> Trying suggested override for [{}] '{}' -> '{}'",
+                        plFactory::ClassName(needle->getType()),
+                        needle->getName(), suggestion->getName());
+        if (func && func(needle, suggestion)) {
+            m_KeyLUT[needle] = suggestion;
+            break;
+        } else {
+            plDebug::Error("  -> Iterator rejected suggested override for [{}] '{}' -> '{}'",
+                            plFactory::ClassName(needle->getType()),
+                            needle->getName(), suggestion->getName());
+            continue;
+        }
+
+        error::raise("gpp::patcher::find_homologous_key() - potential infinite loop");
+    } while (1);
+
+    return dstKey;
+}
+
+plKey gpp::patcher::find_homologous_key(const plKey& needle,
                                         const std::vector<plKey>& haystack)
 {
     plKey result = find_named_key(needle->getLocation(), needle->getType(), needle->getName(), haystack);
@@ -187,45 +232,8 @@ void gpp::patcher::iterate_keys(uint16_t classType,
 {
     for (const auto& loc : m_Source->getLocations()) {
         auto srcKeys = m_Source->getKeys(loc, classType);
-        auto dstKeys = m_Destination->getKeys(loc, classType);
-
         for (const auto& i : srcKeys) {
-            plKey dstKey = find_homologous_key(i, dstKeys);
-            if (dstKey.Exists()) {
-                if (iter(i, dstKey))
-                    continue;
-            }
-
-            // now we ask external code for key name suggestions until they stop giving us any.
-            if (!m_MapFunc) {
-                plDebug::Error("  -> Cannot map [{}] '{}' to another key - no function available",
-                                plFactory::ClassName(i->getType()), i->getName());
-                continue;
-            }
-
-            do {
-                plKey suggestion = map_homologous_key(i, dstKeys);
-                if (!suggestion.Exists()) {
-                    plDebug::Error("  -> No match available for [{}] '{}'",
-                                   plFactory::ClassName(i->getType()), i->getName());
-                    break;
-                }
-
-                plDebug::Debug("  -> Trying suggested override for [{}] '{}' -> '{}'",
-                               plFactory::ClassName(i->getType()),
-                               i->getName(), suggestion->getName());
-                if (iter(i, suggestion)) {
-                    m_KeyLUT[i] = suggestion;
-                    break;
-                } else {
-                    plDebug::Error("  -> Iterator rejected suggested override for [{}] '{}' -> '{}'",
-                                   plFactory::ClassName(i->getType()),
-                                   i->getName(), suggestion->getName());
-                    continue;
-                }
-
-                error::raise("gpp::patcher::iterate_keys() - potential infinite loop");
-            } while (1);
+            plKey keyThatTheIteratorDealtWithSoDontWarn = find_homologous_key(i, iter);
         }
     }
 }
