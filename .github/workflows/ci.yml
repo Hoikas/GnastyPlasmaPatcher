@@ -27,10 +27,11 @@ jobs:
       fail-fast: false
       matrix:
         os: ["ubuntu-20.04", "windows-latest"]
-        arch: ["x64"]
+        arch: ["x86", "x64"]
+        qt: ["5.15.0"]
 
-        include:
-          - os: windows-latest
+        exclude:
+          - os: ubuntu-20.04
             arch: x86
 
     env:
@@ -51,7 +52,6 @@ jobs:
       - name: Get Commit SHA
         id: git-rev
         run: |
-          Write-Host "::set-output name=gpp::$(git rev-parse HEAD)"
           Set-Location $Env:VCPKG_ROOT
           Write-Host "::set-output name=vcpkg::$(git rev-parse HEAD)"
 
@@ -60,7 +60,7 @@ jobs:
         with:
           path: ${{ github.workspace }}/deps
           key: |
-            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }} gpp-rev=${{ steps.git-rev.outputs.gpp }}
+            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }} manifest=${{ hashFiles('vcpkg.json') }}
           restore-keys: |
             vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }}
             vcpkg-cache=${{ runner.os }}-${{ matrix.arch }}
@@ -68,13 +68,31 @@ jobs:
       - name: Configure Build Environment (Windows)
         if: runner.os == 'Windows'
         run: |
+          # Qt started providing both x86 and x64 builds for only MSVC 2019 as of 5.15. This was
+          # true only for MSVC 2017 before then.
+          [int[]]$qt_ver = "${{ matrix.qt }}".split('.')
+          if (($qt_ver[0] -eq 5) -and ($qt_ver[1] -lt 15)) {
+            $qt_compiler = "msvc2017"
+          } else {
+            $qt_compiler = "msvc2019"
+          }
+
           if ("${{ matrix.arch }}" -eq "x86") {
             $cmake_arch = "Win32"
+            $qt_arch = "win32_$($qt_compiler)"
           } else {
             $cmake_arch = "${{ matrix.arch }}"
+            $qt_arch = "win64_$($qt_compiler)_64"
           }
           Write-Host "::set-env name=CMAKE_GENERATOR::Visual Studio 16 2019"
           Write-Host "::set-env name=CMAKE_GENERATOR_PLATFORM::$cmake_arch"
+          Write-Host "::set-env name=QT_ARCH::$qt_arch"
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v2
+        with:
+          version: ${{ matrix.qt }}
+          arch: ${{ env.QT_ARCH }}
 
       - name: Build GPP
         run: |

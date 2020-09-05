@@ -66,3 +66,29 @@ add_executable(gppcli ${GPP_CLI_HEADERS} ${GPP_CLI_SOURCES})
 target_include_directories(gppcli PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/cli>)
 target_link_libraries(gppcli PRIVATE gpplib)
+
+# ===========================================================================
+
+find_package(Qt5 COMPONENTS Core Concurrent Widgets)
+if(Qt5_FOUND)
+    set(GPP_GUI_HEADERS
+        src/gui/key_finder.hpp
+        src/gui/log2gui.hpp
+        src/gui/main.hpp
+    )
+    set(GPP_GUI_SOURCES
+        src/gui/key_finder.cpp
+        src/gui/log2gui.cpp
+        src/gui/main.cpp
+    )
+
+    add_executable(gppgui WIN32 ${GPP_GUI_HEADERS} ${GPP_GUI_SOURCES})
+    set_target_properties(gppgui PROPERTIES AUTOMOC ON)
+    target_include_directories(gppgui PRIVATE
+                               $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/gui>)
+    target_link_libraries(gppgui PRIVATE gpplib)
+    target_link_libraries(gppgui PUBLIC Qt5::Core Qt5::Concurrent Qt5::Widgets)
+
+else()
+    message(STATUS "Qt5 was not found -- not building gppgui!")
+endif()

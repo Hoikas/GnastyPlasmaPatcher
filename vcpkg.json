@@ -7,5 +7,12 @@
     "libhsplasma",
     "string-theory"
   ],
+  "features": [
+    {
+      "name": "gui",
+      "description": "dummy feature for builting Qt5 with vcpkg",
+      "dependencies": ["qt5"]
+    }
+  ],
   "supports": "!(arm|uwp)"
 }
