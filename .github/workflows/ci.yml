@@ -102,7 +102,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_INSTALL=ON `
             ..
-          cmake --build . -j2 --target install
+          cmake --build . -j2 --target install --config Release
 
       - uses: actions/upload-artifact@v2
         with:
