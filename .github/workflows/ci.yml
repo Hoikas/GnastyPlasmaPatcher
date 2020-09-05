@@ -98,13 +98,14 @@ jobs:
         run: |
           mkdir build && cd build
           cmake `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/prefix" `
             -DCMAKE_BUILD_TYPE=Release `
             -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_INSTALL=ON `
             ..
-          cmake --build . -j2
+          cmake --build . -j2 --target install
 
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ runner.os }}-${{ matrix.arch }}
-          path: build/Release
+          name: ${{ runner.os }}-qt${{ matrix.qt }}-${{ matrix.arch }}
+          path: prefix/bin
 

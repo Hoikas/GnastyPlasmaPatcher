@@ -24,6 +24,8 @@ endif()
 
 project(GnastyPlasmaPatcher)
 
+include(GNUInstallDirs)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
@@ -50,6 +52,12 @@ target_include_directories(gpplib PUBLIC
 target_link_libraries(gpplib PUBLIC HSPlasma)
 target_link_libraries(gpplib PUBLIC string_theory)
 
+# Stupid CMake won't install imported targets. Read and weep:
+install(FILES
+        $<$<NOT:$<CONFIG:DEBUG>>:$<TARGET_PROPERTY:HSPlasma,IMPORTED_LOCATION_RELEASE>>;$<$<CONFIG:DEBUG>:$<TARGET_PROPERTY:HSPlasma,IMPORTED_LOCATION_DEBUG>>
+        TYPE BIN
+)
+
 # ===========================================================================
 
 find_package(cxxopts REQUIRED)
@@ -66,6 +74,7 @@ add_executable(gppcli ${GPP_CLI_HEADERS} ${GPP_CLI_SOURCES})
 target_include_directories(gppcli PRIVATE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/cli>)
 target_link_libraries(gppcli PRIVATE gpplib)
+install(TARGETS gppcli)
 
 # ===========================================================================
 
@@ -88,7 +97,40 @@ if(Qt5_FOUND)
                                $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/gui>)
     target_link_libraries(gppgui PRIVATE gpplib)
     target_link_libraries(gppgui PUBLIC Qt5::Core Qt5::Concurrent Qt5::Widgets)
+    install(TARGETS gppgui)
 
+    # Hunt down that rat-bastard windeployqt
+    # Based on https://stackoverflow.com/a/41199492
+    if(WIN32 AND TARGET Qt5::qmake AND NOT TARGET Qt5::windeployqt)
+        get_target_property(_qt5_qmake_location Qt5::qmake IMPORTED_LOCATION)
+
+        execute_process(
+            COMMAND "${_qt5_qmake_location}" -query QT_INSTALL_PREFIX
+            RESULT_VARIABLE return_code
+            OUTPUT_VARIABLE qt5_install_prefix
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+
+        set(imported_location "${qt5_install_prefix}/bin/windeployqt.exe")
+        if(EXISTS ${imported_location})
+            add_executable(Qt5::windeployqt IMPORTED)
+
+            set_target_properties(Qt5::windeployqt PROPERTIES
+                IMPORTED_LOCATION ${imported_location}
+            )
+        endif()
+    endif()
+
+    if(TARGET Qt5::windeployqt)
+        add_custom_command(TARGET gppgui POST_BUILD
+                           COMMAND ${CMAKE_COMMAND} -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/qt"
+                           COMMAND set PATH=%PATH%$<SEMICOLON>${qt5_install_prefix}/bin
+                           COMMAND Qt5::windeployqt --dir "${CMAKE_CURRENT_BINARY_DIR}/qt" "$<TARGET_FILE_DIR:gppgui>/$<TARGET_FILE_NAME:gppgui>"
+        )
+        install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/qt/"
+                DESTINATION "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR}"
+        )
+    endif()
 else()
     message(STATUS "Qt5 was not found -- not building gppgui!")
 endif()
