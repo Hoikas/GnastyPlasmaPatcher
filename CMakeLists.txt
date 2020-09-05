@@ -31,6 +31,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(MSVC)
     set(CMAKE_CXX_FLAGS "/wd4251 ${CMAKE_CXX_FLAGS}")
 endif()
+set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+#  ===========================================================================
+
+add_custom_target(buildinfo ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/_buildinfo.cpp)
+add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/buildinfo.cpp
+                          ${CMAKE_CURRENT_BINARY_DIR}/_buildinfo.cpp
+                   COMMAND ${CMAKE_COMMAND} -P
+                           ${CMAKE_MODULE_PATH}/buildinfo.cmake)
+set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/buildinfo.cpp PROPERTIES GENERATED TRUE)
+add_library(buildinfoobj STATIC ${CMAKE_CURRENT_BINARY_DIR}/buildinfo.cpp)
+add_dependencies(buildinfoobj buildinfo)
 
 # ===========================================================================
 
@@ -38,10 +50,12 @@ find_package(HSPlasma REQUIRED)
 find_package(string_theory REQUIRED)
 
 set(GPP_LIB_HEADERS
+    src/lib/buildinfo.hpp
     src/lib/errors.hpp
     src/lib/patcher.hpp
 )
 set(GPP_LIB_SOURCES
+    src/lib/buildinfo.cpp
     src/lib/patcher_collision.cpp
     src/lib/patcher_base.cpp
 )
@@ -49,6 +63,7 @@ set(GPP_LIB_SOURCES
 add_library(gpplib STATIC ${GPP_LIB_HEADERS} ${GPP_LIB_SOURCES})
 target_include_directories(gpplib PUBLIC
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/lib>)
+target_link_libraries(gpplib PRIVATE buildinfoobj)
 target_link_libraries(gpplib PUBLIC HSPlasma)
 target_link_libraries(gpplib PUBLIC string_theory)
 

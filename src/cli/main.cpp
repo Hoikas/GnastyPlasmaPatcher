@@ -18,6 +18,7 @@
 #include <iostream>
 #include <vector>
 
+#include <buildinfo.hpp>
 #include <errors.hpp>
 #include "log2stdio.hpp"
 #include <patcher.hpp>
@@ -77,6 +78,7 @@ static plKey request_key(const plKey& srcKey, const std::vector<plKey>& keys)
 
 int main(int argc, char** argv)
 {
+    std::cout << gpp::build_info() << std::endl;
     gpp::log::init_stdio();
 
     cxxopts::Options options("gppcli", "monkey patching utility for Plasma data files");

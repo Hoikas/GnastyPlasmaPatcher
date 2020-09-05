@@ -22,6 +22,7 @@
 
 #include "main.hpp"
 #include "key_finder.hpp"
+#include "buildinfo.hpp"
 #include "errors.hpp"
 #include "log2gui.hpp"
 #include "patcher.hpp"
@@ -36,7 +37,7 @@ gpp::main_window::main_window(QWidget* parent)
       m_Log2Gui(log2gui::create()),
       QMainWindow(parent)
 {
-    setWindowTitle("Gnasty Plasma Patcher");
+    setWindowTitle(QString("Gnasty Plasma Patcher (%1)").arg(build_version()));
     resize({ 550, 400 });
 
     create_path_widgets("Source Age/PRP:", m_SrcPath, m_SrcBtn, m_SrcMapper, m_SrcCompleter, m_SrcFsModel);
