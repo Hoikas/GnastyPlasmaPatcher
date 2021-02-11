@@ -22,90 +22,63 @@ defaults:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.cfg.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-20.04", "windows-latest"]
-        arch: ["x86", "x64"]
-        qt: ["5.15.0"]
-
-        exclude:
-          - os: ubuntu-20.04
-            arch: x86
+        cfg:
+          - {
+              os: windows-latest,
+              generator: '-G "Visual Studio 16 2019" -A Win32',
+              qt-version: 5.15.2,
+              qt-arch: win32_msvc2019,
+              str: windows-x86,
+              triplet: x86-windows-static-md
+            }
+          - {
+              os: windows-latest,
+              generator: '-G "Visual Studio 16 2019" -A x64',
+              qt-version: 5.15.2,
+              qt-arch: win64_msvc2019_64,
+              str: windows-x64,
+              triplet: x64-windows-static-md
+            }
+          - {
+              os: ubuntu-20.04,
+              mono: mono,
+              qt-version: 5.15.2,
+              str: linux-x64,
+              triplet: x64-linux
+            }
 
     env:
-      VCPKG_FEATURE_FLAGS: binarycaching,manifests
-      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/deps,readwrite
+      VCPKG_BINARY_SOURCES: clear
 
     steps:
-      - uses: actions/checkout@v2
-
-      - name: Update vcpkg
-        run: |
-          git clone https://github.com/Microsoft/vcpkg.git
-          if ("${{ runner.os }}" -Eq "Windows") {
-            Write-Host "::set-env name=VCPKG_DEFAULT_TRIPLET::${{ matrix.arch }}-windows-static-md"
-          }
-
-      - name: Get Commit SHA
-        id: git-rev
-        run: |
-          Set-Location $Env:VCPKG_ROOT
-          Write-Host "::set-output name=vcpkg::$(git rev-parse HEAD)"
-
-      - name: Restore Cache
-        uses: actions/cache@v2
+      - name: Checkout GPP
+        uses: actions/checkout@v2
         with:
-          path: ${{ github.workspace }}/deps
-          key: |
-            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }} manifest=${{ hashFiles('vcpkg.json') }}
-          restore-keys: |
-            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }} vcpkg-rev=${{ steps.git-rev.outputs.vcpkg }}
-            vcpkg-cache=${{ runner.os }}-${{ matrix.arch }}
-
-      - name: Configure Build Environment (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          # Qt started providing both x86 and x64 builds for only MSVC 2019 as of 5.15. This was
-          # true only for MSVC 2017 before then.
-          [int[]]$qt_ver = "${{ matrix.qt }}".split('.')
-          if (($qt_ver[0] -eq 5) -and ($qt_ver[1] -lt 15)) {
-            $qt_compiler = "msvc2017"
-          } else {
-            $qt_compiler = "msvc2019"
-          }
-
-          if ("${{ matrix.arch }}" -eq "x86") {
-            $cmake_arch = "Win32"
-            $qt_arch = "win32_$($qt_compiler)"
-          } else {
-            $cmake_arch = "${{ matrix.arch }}"
-            $qt_arch = "win64_$($qt_compiler)_64"
-          }
-          Write-Host "::set-env name=CMAKE_GENERATOR::Visual Studio 16 2019"
-          Write-Host "::set-env name=CMAKE_GENERATOR_PLATFORM::$cmake_arch"
-          Write-Host "::set-env name=QT_ARCH::$qt_arch"
+          submodules: true
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
         with:
-          version: ${{ matrix.qt }}
-          arch: ${{ env.QT_ARCH }}
+          version: ${{ matrix.cfg.qt-version }}
+          arch: ${{ matrix.cfg.qt-arch }}
 
       - name: Build GPP
         run: |
           mkdir build && cd build
           cmake `
+            ${{ matrix.cfg.generator }} `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/prefix" `
             -DCMAKE_BUILD_TYPE=Release `
-            -DVCPKG_MANIFEST_MODE=ON -DVCPKG_MANIFEST_INSTALL=ON `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.cfg.triplet }} `
             ..
           cmake --build . -j2 --target install --config Release
 
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ runner.os }}-qt${{ matrix.qt }}-${{ matrix.arch }}
+          name: ${{ matrix.cfg.str }}-qt${{ matrix.cfg.qt-version }}
           path: prefix/bin
 
