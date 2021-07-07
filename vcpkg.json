@@ -4,7 +4,6 @@
   "homepage": "https://github.com/Hoikas/GnastyPlasmaPatcher",
   "dependencies": [
     "cxxopts",
-    "libhsplasma",
     "string-theory"
   ],
   "features": [
@@ -12,6 +11,11 @@
       "name": "gui",
       "description": "dummy feature for builting Qt5 with vcpkg",
       "dependencies": ["qt5"]
+    },
+    {
+      "name": "hsplasma",
+      "description": "dummy feature for building libhsplasma with vcpkg",
+      "dependencies": ["libhsplasma"]
     }
   ],
   "supports": "!(arm|uwp)"
