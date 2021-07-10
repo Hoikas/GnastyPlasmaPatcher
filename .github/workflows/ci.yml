@@ -52,13 +52,50 @@ jobs:
             }
 
     env:
-      VCPKG_BINARY_SOURCES: clear
+      VCPKG_BINARY_SOURCES: clear;files,${{ github.workspace }}/vcpkg_cache,readwrite
 
     steps:
       - name: Checkout GPP
         uses: actions/checkout@v2
         with:
           submodules: true
+
+      - name: Checkout HSPlasma
+        uses: actions/checkout@v2
+        with:
+          repository: H-uru/libhsplasma
+          path: libhsplasma
+
+      - name: Get VCPKG Revision
+        id: vcpkg-rev
+        run: |
+          Write-Host "::set-output name=rev::$($(git submodule status vcpkg).Trim())"
+
+      - name: Restore VCPKG Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/vcpkg_cache
+          key: vcpkg ${{ matrix.cfg.triplet }} ${{ steps.vcpkg-rev.outputs.rev }}
+          restore-keys: |
+            vcpkg ${{ matrix.cfg.triplet }}
+
+
+      - name: Build HSPlasma
+        run: |
+          mkdir -p libhsplasma/build && cd libhsplasma/build
+          cmake `
+            ${{ matrix.cfg.generator }} `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/prefix" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DCMAKE_UNITY_BUILD=ON `
+            -DENABLE_PYTHON=OFF `
+            -DENABLE_TOOLS=OFF `
+            -DENABLE_NET=OFF `
+            -DENABLE_PHYSX=OFF `
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.cfg.triplet }} `
+            ..
+          cmake --build . -j2 --target install --config Release
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v2
@@ -74,7 +111,6 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/prefix" `
             -DCMAKE_BUILD_TYPE=Release `
             -DVCPKG_TARGET_TRIPLET=${{ matrix.cfg.triplet }} `
-            -DVCPKG_MANIFEST_FEATURES=hsplasma `
             ..
           cmake --build . -j2 --target install --config Release
 

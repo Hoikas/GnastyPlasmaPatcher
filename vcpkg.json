@@ -4,7 +4,10 @@
   "homepage": "https://github.com/Hoikas/GnastyPlasmaPatcher",
   "dependencies": [
     "cxxopts",
-    "string-theory"
+    "libjpeg-turbo",
+    "libpng",
+    "string-theory",
+    "zlib"
   ],
   "features": [
     {
