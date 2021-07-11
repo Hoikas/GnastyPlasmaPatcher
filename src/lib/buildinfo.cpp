@@ -33,11 +33,6 @@ namespace gpp
 
 // =================================================================================
 
-const char* gpp::build_date()
-{
-    return gpp::buildinfo::BUILD_DATE;
-}
-
 const char* gpp::build_hash()
 {
     return gpp::buildinfo::BUILD_HASH;
@@ -51,11 +46,6 @@ const char* gpp::build_branch()
 const char* gpp::build_tag()
 {
     return gpp::buildinfo::BUILD_TAG;
-}
-
-const char* gpp::build_time()
-{
-    return gpp::buildinfo::BUILD_TIME;
 }
 
 const char* gpp::build_version()
@@ -75,7 +65,6 @@ ST::string gpp::build_info()
     if (*gpp::buildinfo::BUILD_TAG != 0)
         stream << " (" << gpp::buildinfo::BUILD_TAG << ")";
     stream << " [" << gpp::buildinfo::BUILD_HASH << " (" << gpp::buildinfo::BUILD_BRANCH << ")] ";
-    stream << gpp::buildinfo::BUILD_DATE << " " << gpp::buildinfo::BUILD_TIME << " ";
 #if defined(__clang__)
     stream << "clang++ " << __clang_version__;
 #elif defined(__GNUC__)

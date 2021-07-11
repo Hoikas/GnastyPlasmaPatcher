@@ -18,7 +18,7 @@
 # Updated to use FindGit :)
 find_package(Git)
 if(GIT_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} log --pretty=format:'%h' -n 1
+    execute_process(COMMAND "${GIT_EXECUTABLE}" log --pretty=format:'%h' -n 1
                     OUTPUT_VARIABLE GIT_REV
                     ERROR_QUIET)
 else()
@@ -34,13 +34,13 @@ if ("${GIT_REV}" STREQUAL "")
     set(GIT_BRANCH "")
 else()
     execute_process(
-        COMMAND git diff --quiet --exit-code
+        COMMAND "${GIT_EXECUTABLE}" diff --quiet --exit-code
         RESULT_VARIABLE GIT_DIFF)
     execute_process(
-        COMMAND git describe --exact-match --tags
+        COMMAND "${GIT_EXECUTABLE}" describe --exact-match --tags
         OUTPUT_VARIABLE GIT_TAG ERROR_QUIET)
     execute_process(
-        COMMAND git rev-parse --abbrev-ref HEAD
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --abbrev-ref HEAD
         OUTPUT_VARIABLE GIT_BRANCH)
 
     if(${GIT_DIFF} STREQUAL "1")
@@ -55,14 +55,6 @@ else()
     string(STRIP "${GIT_BRANCH}" GIT_BRANCH)
 endif()
 
-if(UNIX)
-    execute_process(COMMAND date "+%Y-%m-%d" OUTPUT_VARIABLE BUILD_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND date "+%H:%M:%S" OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)
-elseif(WIN32)
-    execute_process(COMMAND PowerShell -Command Get-Date -UFormat %Y-%m-%d OUTPUT_VARIABLE BUILD_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
-    execute_process(COMMAND PowerShell -Command Get-Date -UFormat %H:%M:%S OUTPUT_VARIABLE BUILD_TIME OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif()
-
 set(VERSION
 "namespace gpp
 {
@@ -71,8 +63,6 @@ set(VERSION
         const char* BUILD_HASH = \"${GIT_REV}${GIT_DIRTY}\";
         const char* BUILD_TAG = \"${GIT_TAG}\";
         const char* BUILD_BRANCH = \"${GIT_BRANCH}\";
-        const char* BUILD_DATE = \"${BUILD_DATE}\";
-        const char* BUILD_TIME = \"${BUILD_TIME}\";
     };
 };
 ")
