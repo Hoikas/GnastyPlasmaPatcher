@@ -59,7 +59,8 @@ namespace gpp
         QCompleter* m_DstCompleter;
         QFileSystemModel* m_DstFsModel;
 
-        QCommandLinkButton* m_TheBtn;
+        QCommandLinkButton* m_PatchBtn;
+        QCommandLinkButton* m_MergeBtn;
         QFutureWatcher<std::tuple<QString, QString>> m_Patcher;
         key_finder* m_KeyFinderDialog;
 
@@ -74,10 +75,13 @@ namespace gpp
 
         std::tuple<QString, QString> patch(const std::filesystem::path& src,
                                            const std::filesystem::path& dst);
+        std::tuple<QString, QString> merge(const std::filesystem::path& src,
+                                           const std::filesystem::path& dst);
 
     private slots:
         void handle_PathBtn(QWidget* widget);
         void handle_ConvertBtnPush();
+        void handle_MergeBtnPush();
 
         void handle_PatchStart();
         void handle_PatchFinished();

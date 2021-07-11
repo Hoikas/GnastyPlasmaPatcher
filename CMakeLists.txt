@@ -56,11 +56,14 @@ set(GPP_LIB_HEADERS
     src/lib/buildinfo.hpp
     src/lib/errors.hpp
     src/lib/patcher.hpp
+    src/lib/span_hacker.hpp
 )
 set(GPP_LIB_SOURCES
     src/lib/buildinfo.cpp
-    src/lib/patcher_collision.cpp
+    src/lib/merger.cpp
+    src/lib/patcher.cpp
     src/lib/patcher_base.cpp
+    src/lib/span_hacker.cpp
 )
 
 add_library(gpplib STATIC ${GPP_LIB_HEADERS} ${GPP_LIB_SOURCES})

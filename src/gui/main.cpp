@@ -44,11 +44,17 @@ gpp::main_window::main_window(QWidget* parent)
     create_path_widgets("Desintation Age/PRP:", m_DstPath, m_DstBtn, m_DstMapper, m_DstCompleter, m_DstFsModel);
     m_Layout->addLayout(m_Form);
 
-    m_TheBtn = new QCommandLinkButton("Patch",
-                                      "Merge the changed objects from Source into Destination.",
-                                      this);
-    connect(m_TheBtn, &QCommandLinkButton::released, this, &main_window::handle_ConvertBtnPush);
-    m_Layout->addWidget(m_TheBtn);
+    m_PatchBtn = new QCommandLinkButton("Patch Existing Objects",
+                                        "Merge the changed objects from Source into Destination.",
+                                        this);
+    connect(m_PatchBtn, &QCommandLinkButton::released, this, &main_window::handle_ConvertBtnPush);
+    m_Layout->addWidget(m_PatchBtn);
+
+    m_MergeBtn = new QCommandLinkButton("Merge New Objects",
+                                        "Merge all objects from Source into Destination.",
+                                         this);
+    connect(m_MergeBtn, &QCommandLinkButton::released, this, &main_window::handle_MergeBtnPush);
+    m_Layout->addWidget(m_MergeBtn);
     m_Layout->addSpacing(20);
 
     m_LogEdit->setAcceptRichText(true);
@@ -207,7 +213,8 @@ void gpp::main_window::handle_PatchStart()
     m_SrcBtn->setDisabled(true);
     m_DstPath->setDisabled(true);
     m_DstBtn->setDisabled(true);
-    m_TheBtn->setDisabled(true);
+    m_PatchBtn->setDisabled(true);
+    m_MergeBtn->setDisabled(true);
 }
 
 void gpp::main_window::handle_PatchFinished()
@@ -224,7 +231,8 @@ void gpp::main_window::handle_PatchFinished()
     m_SrcBtn->setDisabled(false);
     m_DstPath->setDisabled(false);
     m_DstBtn->setDisabled(false);
-    m_TheBtn->setDisabled(false);
+    m_PatchBtn->setDisabled(false);
+    m_MergeBtn->setDisabled(false);
 }
 
 // ===========================================================================
@@ -247,13 +255,33 @@ std::tuple<QString, QString> gpp::main_window::patch(const std::filesystem::path
             return m_KeyFinderDialog->steal_key();
         });
         patcher.process_collision();
+        patcher.process_drawables();
         patcher.save_damage(src, dst);
     } catch (const error& ex) {
         return std::make_tuple("Patch Failed", ex.what());
+#if !defined(_DEBUG) || defined(NDEBUG)
     } catch (const std::exception& ex) {
         return std::make_tuple("Unhandled Exception", ex.what());
+#endif
     }
 
+    return std::make_tuple(QString(), QString());
+}
+
+std::tuple<QString, QString> gpp::main_window::merge(const std::filesystem::path& src,
+                                                     const std::filesystem::path& dst)
+{
+    try {
+        merger patcher(src, dst);
+        patcher.process();
+        patcher.save_damage(src, dst);
+    } catch (const error& ex) {
+        return std::make_tuple("Merge Failed", ex.what());
+#if !defined(_DEBUG) || defined(NDEBUG)
+    } catch (const std::exception& ex) {
+        return std::make_tuple("Unhandled Exception", ex.what());
+#endif
+    }
 
     return std::make_tuple(QString(), QString());
 }
@@ -264,9 +292,31 @@ void gpp::main_window::handle_ConvertBtnPush()
 
     auto src = IConvertQStr(m_SrcPath->text());
     auto dst = IConvertQStr(m_DstPath->text());
+    // Flip to 0 for debugging
+#if 1 // !defined(_DEBUG) || defined(NDEBUG)
     auto fut = QtConcurrent::run(this, &main_window::patch, src, dst);
     m_Patcher.setFuture(fut);
+#else
+    patch(src, dst);
+#endif
 }
+
+void gpp::main_window::handle_MergeBtnPush()
+{
+    clear_log();
+
+    auto src = IConvertQStr(m_SrcPath->text());
+    auto dst = IConvertQStr(m_DstPath->text());
+
+    // Flip to 0 for debugging
+#if 1 // !defined(_DEBUG) || defined(NDEBUG)
+    auto fut = QtConcurrent::run(this, &main_window::merge, src, dst);
+    m_Patcher.setFuture(fut);
+#else
+    merge(src, dst);
+#endif
+}
+
 
 void gpp::main_window::handle_LogMsg(const QString& msg)
 {

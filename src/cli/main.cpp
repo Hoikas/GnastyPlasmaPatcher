@@ -88,6 +88,7 @@ int main(int argc, char** argv)
 
         ("h,help", "show help", cxxopts::value<bool>()->default_value("false"))
         ("no-colliders", "don't patch collision", cxxopts::value<bool>()->default_value("false"))
+        ("no-drawables", "don't patch drawables", cxxopts::value<bool>()->default_value("false"))
         ("q,quiet", "silence output", cxxopts::value<bool>()->default_value("false"))
     ;
     options.parse_positional({"source", "destination"});
@@ -115,6 +116,8 @@ int main(int argc, char** argv)
         patcher.set_map_func(request_key);
         if (!results["no-colliders"].as<bool>())
             patcher.process_collision();
+        if (!results["no-drawables"].as<bool>())
+            patcher.process_drawables();
         patcher.save_damage(source, destination);
     } catch (const cxxopts::OptionParseException& ex) {
         std::cerr << "Fatal Error! Could not process arguments:" << std::endl;
