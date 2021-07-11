@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GnastyPlasmaPatcher.  If not, see <https://www.gnu.org/licenses/>.
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "" FORCE)
 if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
@@ -22,6 +22,7 @@ endif()
 
 project(GnastyPlasmaPatcher)
 
+include(CheckIPOSupported)
 include(GNUInstallDirs)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -30,6 +31,12 @@ if(MSVC)
     set(CMAKE_CXX_FLAGS "/wd4251 ${CMAKE_CXX_FLAGS}")
 endif()
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+
+check_ipo_supported(RESULT IPO_SUPPORTED)
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG OFF CACHE BOOL "")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ${IPO_SUPPORTED} CACHE BOOL "")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL ${IPO_SUPPORTED} CACHE BOOL "")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO ${IPO_SUPPORTED} CACHE BOOL "")
 
 #  ===========================================================================
 
