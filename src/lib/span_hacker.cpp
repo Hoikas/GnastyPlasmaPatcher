@@ -87,7 +87,7 @@ namespace
         size_t criteria, size_t props)
     {
         plPageInfo* page = mgr->FindPage(loc);
-        const char* span_type = (new_pass == gpp::render_pass::opaque ? "Spans" : "BlendSpans");
+        const char* span_type = (new_pass == gpp::render_pass::e_opaque ? "Spans" : "BlendSpans");
         size_t renderLevel = gpp::span_hacker::translate_render_pass(new_pass, minor);
         ST::string name = ST::format(
             "{}_{}_{08X}_{X}{}",
@@ -207,7 +207,7 @@ bool gpp::span_hacker::iterate_passes(const gpp::span_hacker::pass_iter& func, c
                 materials.emplace_back(dspan->getMaterials().at(span->getMaterialIdx()));
             }
 
-            func(obj, render_pass::blend, i, materials);
+            func(obj, render_pass::e_blend, i, materials);
         }
         return true;
     }

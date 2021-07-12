@@ -37,11 +37,11 @@ namespace gpp
 
     enum class render_pass
     {
-        opaque = 0,
-        framebuf = 1,
-        default = 2,
-        blend = 3,
-        late = 4,
+        e_opaque = 0,
+        e_framebuf = 1,
+        e_default = 2,
+        e_blend = 3,
+        e_late = 4,
     };
 
     class span_hacker
