@@ -19,6 +19,7 @@
 #include "span_hacker.hpp"
 
 #include <algorithm>
+#include <regex>
 
 #include <Debug/plDebug.h>
 #include <PRP/Object/plDrawInterface.h>
@@ -28,6 +29,8 @@
 #include <PRP/plSceneNode.h>
 #include <ResManager/plFactory.h>
 #include <ResManager/plResManager.h>
+
+using namespace ST::literals;
 
  // ===========================================================================
 
@@ -144,7 +147,7 @@ plKey gpp::patcher::find_homologous_key(const plKey& needle,
         plDebug::Debug("  -> Trying suggested override for [{}] '{}' -> '{}'",
             plFactory::ClassName(needle->getType()),
             needle->getName(), suggestion->getName());
-        if (func && func(needle, suggestion)) {
+        if (!func || (func && func(needle, suggestion))) {
             m_KeyLUT[needle] = suggestion;
             break;
         } else {
@@ -207,20 +210,79 @@ void gpp::patcher::iterate_keys(uint16_t classType,
 
 // ===========================================================================
 
+namespace
+{
+    class override_map_func
+    {
+        class very_gnawty : public gpp::patcher
+        {
+        public:
+            gpp::object_mapping_func& map_func() { return m_MapFunc; }
+        };
+
+        very_gnawty* m_Patcher;
+        gpp::object_mapping_func m_MapFunc;
+
+    public:
+        override_map_func() = delete;
+        override_map_func(gpp::patcher* patcher, gpp::object_mapping_func func)
+            : m_Patcher((very_gnawty*)patcher),
+              m_MapFunc(std::move(static_cast<very_gnawty*>(patcher)->map_func()))
+        {
+            m_Patcher->map_func() = [this, newMapFunc = std::move(func)]
+                (auto&&... args) {
+                    plKey result = newMapFunc(std::forward<decltype(args)>(args)...);
+                    if (!result.Exists() && m_MapFunc)
+                        result = m_MapFunc(std::forward<decltype(args)>(args)...);
+                    return result;
+            };
+        }
+        override_map_func(const override_map_func&) = delete;
+        override_map_func(override_map_func&&) = delete;
+
+        ~override_map_func()
+        {
+            m_Patcher->set_map_func(std::move(m_MapFunc));
+        }
+    };
+
+    ST::string ST_regex_replace(const std::regex& regex, const ST::string& str, const char* replace) {
+        class ST_ss_push_back : public ST::string_stream
+        {
+        public:
+            using value_type = char;
+            void push_back(value_type ch) { append_char(ch); }
+        } ss;
+        std::regex_replace(
+            std::back_inserter(ss),
+            str.begin(),
+            str.end(),
+            regex,
+            replace
+        );
+        return ss.to_string();
+    };
+};
+
+// ===========================================================================
+
 void gpp::patcher::process_collision()
 {
     plDebug::Debug("Processing colliders...");
 
-    auto oldMap = std::move(m_MapFunc);
-    m_MapFunc = [this, &oldMap](const plKey& srcKey, const std::vector<plKey>& keys) {
-        // This is a common ZLZ replacement for us to check before prompting.
-        plKey result = find_named_key(srcKey->getLocation(), srcKey->getType(),
-            srcKey->getName(), ST_LITERAL("_COLLISION_001"),
-            keys);
-        if (!result.Exists() && oldMap)
-            result = oldMap(srcKey, keys);
-        return result;
-    };
+    override_map_func keyHelper(
+        this,
+        [this](const plKey& srcKey, const std::vector<plKey>& keys) {
+            // This is a common ZLZ replacement for us to check before prompting.
+            return find_named_key(
+                srcKey->getLocation(),
+                srcKey->getType(),
+                srcKey->getName(),
+                "_COLLISION_001"_st,
+                keys
+            );
+        }
+    );
 
     iterate_objects<plSceneObject>(
         [this](const plSceneObject* srcSO, plSceneObject* dstSO) {
@@ -280,13 +342,59 @@ void gpp::patcher::process_collision()
         return true;
     }
     );
-
-    m_MapFunc = std::move(oldMap);
 }
 
 void gpp::patcher::process_drawables()
 {
     plDebug::Debug("Processing drawables...");
+
+    std::regex materialRegex(R"(^(?:m_)(\d+)(.+)?$)");
+    std::regex lightmapRegex("_LM$");
+
+    override_map_func keyHelper(
+        this,
+        [&](const plKey& srcKey, const std::vector<plKey>& keys) -> plKey {
+            plKey result;
+            if (srcKey->getType() == kSceneObject || srcKey->getType() == kDrawInterface) {
+                result = find_named_key(
+                    srcKey->getLocation(),
+                    srcKey->getType(),
+                    srcKey->getName(),
+                    "_DRAW_001"_st,
+                    keys
+                );
+                if (result.Exists())
+                    return result;
+            }
+
+            // ZLZ does these translations unambiguously, so they should be safe.
+            const auto& ogname = srcKey->getName();
+            auto rename = ST_regex_replace(materialRegex, ogname, "Material #$01$02");
+            result = find_named_key(
+                srcKey->getLocation(),
+                srcKey->getType(),
+                rename,
+                keys
+            );
+            if (result.Exists())
+                return result;
+
+            rename = ST_regex_replace(lightmapRegex, rename, "_LIGHTMAPGEN");
+            result = find_named_key(
+                srcKey->getLocation(),
+                srcKey->getType(),
+                rename,
+                keys
+            );
+            if (result.Exists())
+                return result;
+
+            // There are other possibilities for replacement checking, but those might be
+            // fairly difficult to handle. For now, bail out and wait for users to complain
+            // about patterns that we could match.
+            return result;
+        }
+    );
 
     span_hacker geom(m_Source, m_Destination);
     geom.set_map_func(

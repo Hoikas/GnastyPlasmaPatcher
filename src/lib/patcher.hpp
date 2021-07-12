@@ -67,6 +67,7 @@ namespace gpp
      */
     class patcher : public patcher_base
     {
+    protected:
         std::map<plKey, plKey> m_KeyLUT;
         object_mapping_func m_MapFunc;
 
