@@ -489,8 +489,12 @@ namespace
         auto myDIfaces = get_interfaces(dspan);
         std::set<size_t> usedDIIs;
         for (auto [dIface, myIdxes] : myDIfaces) {
-            for (auto i : myIdxes)
-                usedDIIs.insert(dIface->getDrawableKey(i));
+            for (auto i : myIdxes) {
+                // No -1 because those are particle systems
+                int dii = dIface->getDrawableKey(i);
+                if (dii != -1)
+                    usedDIIs.insert(i);
+            }
         }
 
         // Look for any gaps in the set prepared above - these are the ones
